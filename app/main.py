@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.core.config import get_settings
-from app.routers import schengen, us_visa
+from app.routers import mock_router, schengen, us_visa
 
 settings = get_settings()
 
@@ -16,6 +16,7 @@ app = FastAPI(
 
 app.include_router(us_visa.router)
 app.include_router(schengen.router)
+app.include_router(mock_router.router)
 
 
 @app.get("/health", tags=["System"])

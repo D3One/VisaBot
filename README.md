@@ -20,6 +20,7 @@ Instead, it provides a working, deployable API scaffold that:
 - returns placeholder `application_number`, `screenshot_base64`, or `pdf_base64` values;
 - stores status in a local JSON file;
 - sends optional Telegram notifications to the `chat_id` provided in each API request;
+- exposes `/api/v1/mock/*` endpoints for local development without calling any external visa portal;
 - keeps the same overall structure so you can adapt it for lawful, human-in-the-loop workflows.
 
 Use only with official APIs, explicit authorization, and the applicable terms of the relevant visa-processing provider.
@@ -58,7 +59,8 @@ visa-bot-safe/
 │  ├─ routers/
 │  │  ├─ __init__.py
 │  │  ├─ us_visa.py
-│  │  └─ schengen.py
+│  │  ├─ schengen.py
+│  │  └─ mock_router.py
 │  └─ services/
 │     ├─ __init__.py
 │     ├─ schengen_service.py
@@ -112,6 +114,74 @@ Open:
 
 ```text
 http://localhost:8000/docs
+```
+
+
+## Local mock API
+
+The mock API is intended for safe local development. It does not call CEAC, VFS, embassy sites, CAPTCHA services, proxy providers, or any other external visa-processing portal.
+
+Available mock routes:
+
+```text
+POST /api/v1/mock/us-visa/apply
+POST /api/v1/mock/schengen/apply
+GET  /api/v1/mock/status/{application_number}
+```
+
+Mock applications are stored in memory in `FAKE_DB`. After roughly 60 seconds, the background task changes the status from `PENDING` to `APPROVED`. The data is reset when the API process or container restarts.
+
+### Mock US visa request
+
+```bash
+curl -X POST http://localhost:8000/api/v1/mock/us-visa/apply \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "user_id": "test_user_1",
+    "chat_id": 987654321,
+    "surname": "Doe",
+    "given_name": "John",
+    "passport_number": "A1234567",
+    "birth_date": "1990-01-01",
+    "arrival_date": "2026-07-15",
+    "stay_length": "30",
+    "purpose": "tourism"
+  }'
+```
+
+### Mock status check
+
+```bash
+curl http://localhost:8000/api/v1/mock/status/US3F9E7A2B
+```
+
+### Mock Schengen request
+
+```bash
+curl -X POST http://localhost:8000/api/v1/mock/schengen/apply \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "user_id": "test_user_2",
+    "chat_id": 987654321,
+    "target_country": "germany",
+    "surname": "Doe",
+    "given_name": "Jane",
+    "passport_number": "B1234567",
+    "birth_date": "1991-02-02",
+    "nationality": "DE",
+    "passport_issuing_country": "DE",
+    "passport_expiration": "2030-12-31",
+    "address": "Musterstrasse 12",
+    "city": "Berlin",
+    "zip_code": "10115",
+    "country": "DE",
+    "phone": "+4915112345678",
+    "email": "jane.doe@example.com",
+    "purpose": "tourism",
+    "arrival_date": "2026-09-15",
+    "stay_length": "14",
+    "occupation": "student"
+  }'
 ```
 
 ## Example requests
