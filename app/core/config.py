@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,8 +14,15 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     storage_path: str = Field(default="data/status_store.json", alias="STORAGE_PATH")
 
-    telegram_bot_token: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
-    telegram_chat_id: str | None = Field(default=None, alias="TELEGRAM_CHAT_ID")
+    # Preferred env var: BOT_TOKEN, per the Telegram-focused API patch.
+    telegram_bot_token: str | None = Field(default=None, alias="BOT_TOKEN")
+
+    # Backwards-compatible fallback for earlier scaffold versions.
+    telegram_bot_token_legacy: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
+
+    @property
+    def bot_token(self) -> str | None:
+        return self.telegram_bot_token or self.telegram_bot_token_legacy
 
 
 @lru_cache

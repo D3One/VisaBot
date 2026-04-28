@@ -20,7 +20,8 @@ This keeps product/legal/operational documentation separate from executable code
 
 | Field | Required for US visa dry-run | Required for Schengen dry-run | Description | Format / Allowed values | Example |
 |---|---:|---:|---|---|---|
-| `user_id` | Yes | Yes | Unique user identifier in your bot, usually the Telegram ID. | String or numeric string | `987654321` |
+| `user_id` | Yes | Yes | Unique user identifier in your bot. | String or numeric string | `12345` |
+| `chat_id` | Yes | Yes | Telegram chat ID where backend notifications should be sent. This is now passed in each API request, not stored in `.env`. | Integer; private chats are usually positive, groups may be negative | `987654321` |
 | `surname` | Yes | Yes | Applicant surname / family name in Latin characters. | String | `Miller` |
 | `given_name` | Yes | Yes | Applicant given name in Latin characters. | String | `Anna` |
 | `other_names` | No | No | Patronymic, middle name, or other names, if relevant. | String | `Petrovich` |
@@ -43,19 +44,23 @@ This keeps product/legal/operational documentation separate from executable code
 
 ---
 
-## Important API naming note
+## Important Telegram notification note
 
-The Telegram bot can collect the postal code as `zip_code` because that name is clearer for bot developers.
+The backend no longer reads a global `TELEGRAM_CHAT_ID` from `.env`.
 
-The current FastAPI scaffold accepts Schengen payloads with the field name `zip`.
+The bot should include `chat_id` in every `POST /api/v1/us-visa/apply` and `POST /api/v1/schengen/apply` request. The backend stores that value with the local dry-run record and reuses it for later status notifications.
 
-Recommended mapping in the Telegram bot before calling the backend:
+`.env` should contain only the bot token:
 
-```python
-payload["zip"] = collected_user_data["zip_code"]
+```env
+BOT_TOKEN=123456:ABCDEF
 ```
 
-Alternatively, update the backend model later to accept both `zip` and `zip_code` aliases.
+---
+
+## Important API naming note
+
+The backend Schengen model now accepts the postal code as `zip_code`, matching the Telegram bot collection table and the patch instructions.
 
 ---
 
@@ -63,7 +68,8 @@ Alternatively, update the backend model later to accept both `zip` and `zip_code
 
 ```json
 {
-  "user_id": "987654321",
+  "user_id": "12345",
+  "chat_id": 987654321,
   "surname": "Miller",
   "given_name": "Anna",
   "passport_number": "C1234567",
@@ -91,7 +97,8 @@ Optional US fields currently supported by the backend model:
 
 ```json
 {
-  "user_id": "987654321",
+  "user_id": "12345",
+  "chat_id": 987654321,
   "target_country": "germany",
   "surname": "Miller",
   "given_name": "Anna",
@@ -102,7 +109,7 @@ Optional US fields currently supported by the backend model:
   "purpose": "tourism",
   "address": "Musterstrasse 12",
   "city": "Berlin",
-  "zip": "10115",
+  "zip_code": "10115",
   "phone": "+4915112345678",
   "email": "anna.mueller@example.com"
 }
@@ -125,7 +132,10 @@ Optional Schengen fields currently supported by the backend model:
 ## Suggested Telegram bot question flow
 
 1. Ask which workflow the user needs: `us_visa` or `schengen`.
-2. Collect the common fields:
+2. Capture Telegram identifiers from the bot context:
+   - `user_id`
+   - `chat_id`
+3. Collect the common fields:
    - `surname`
    - `given_name`
    - `other_names`, if applicable
@@ -137,7 +147,7 @@ Optional Schengen fields currently supported by the backend model:
    - `purpose`
    - `arrival_date`
    - `stay_length`
-3. For Schengen, additionally collect:
+4. For Schengen, additionally collect:
    - `target_country`
    - `address`
    - `city`
@@ -146,12 +156,12 @@ Optional Schengen fields currently supported by the backend model:
    - `phone`
    - `email`
    - `occupation`
-4. Show a confirmation summary to the user before sending anything to the backend.
-5. Convert the collected data into the backend JSON payload.
-6. Send the payload to:
+5. Show a confirmation summary to the user before sending anything to the backend.
+6. Convert the collected data into the backend JSON payload.
+7. Send the payload to:
    - `POST /api/v1/us-visa/apply`, or
    - `POST /api/v1/schengen/apply`.
-7. Save the returned `application_number` together with `user_id` in your bot database.
+8. Save the returned `application_number` together with `user_id` and `chat_id` in your bot database.
 
 ---
 
@@ -166,6 +176,7 @@ Optional Schengen fields currently supported by the backend model:
 | `purpose` | Restrict to `tourism`, `business`, `study`, `family`, `other`. |
 | `target_country` | Restrict to `germany` or `france` unless backend support is expanded. |
 | `stay_length` | Positive integer; current backend model allows `1`-`365`. |
+| `chat_id` | Must be numeric; private chat IDs are usually positive, group/supergroup IDs may be negative. |
 
 ---
 
@@ -174,6 +185,7 @@ Optional Schengen fields currently supported by the backend model:
 - Treat passport number, date of birth, address, phone, and email as sensitive personal data.
 - Do not log full passport numbers in application logs.
 - Mask sensitive values in bot admin panels, for example `C12****67`.
+- Store only `BOT_TOKEN` in `.env`; pass `chat_id` in the request payload.
 - Encrypt secrets in `.env` or secret manager; do not commit real tokens to GitHub.
 - Store only what is needed and define a retention period.
 - Add a user confirmation step before creating any backend draft.

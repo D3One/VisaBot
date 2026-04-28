@@ -19,10 +19,30 @@ Instead, it provides a working, deployable API scaffold that:
 - creates local dry-run application records;
 - returns placeholder `application_number`, `screenshot_base64`, or `pdf_base64` values;
 - stores status in a local JSON file;
-- optionally sends Telegram notifications;
+- sends optional Telegram notifications to the `chat_id` provided in each API request;
 - keeps the same overall structure so you can adapt it for lawful, human-in-the-loop workflows.
 
 Use only with official APIs, explicit authorization, and the applicable terms of the relevant visa-processing provider.
+
+## Latest patch: per-request Telegram `chat_id`
+
+Telegram notifications no longer use a global `TELEGRAM_CHAT_ID` from `.env`.
+
+The `.env` file stores only the bot token:
+
+```env
+BOT_TOKEN=123456:ABCDEF
+```
+
+For backwards compatibility, `TELEGRAM_BOT_TOKEN` is also accepted by the app, but new deployments should use `BOT_TOKEN`.
+
+Every `POST /apply` request must now include:
+
+```json
+"chat_id": 987654321
+```
+
+This lets the same Docker container notify different Telegram chats without changing environment variables or restarting the container.
 
 ## Repository structure
 
@@ -46,7 +66,8 @@ visa-bot-safe/
 │     └─ us_visa_service.py
 ├─ docs/
 │  ├─ LEGAL_AND_OPERATIONAL_NOTES.md
-│  └─ PROJECT_CONTEXT.md
+│  ├─ PROJECT_CONTEXT.md
+│  └─ TELEGRAM_BOT_DATA_FIELDS.md
 ├─ scripts/
 │  ├─ schengen_playwright.py
 │  └─ us_visa_playwright.py
@@ -83,6 +104,7 @@ http://localhost:8000/docs
 
 ```bash
 cp .env.example .env
+# Edit .env and set BOT_TOKEN if Telegram notifications are needed.
 docker compose up --build
 ```
 
@@ -101,6 +123,7 @@ curl -X POST http://localhost:8000/api/v1/us-visa/apply \
   -H 'Content-Type: application/json' \
   -d '{
     "user_id": "12345",
+    "chat_id": 987654321,
     "surname": "Miller",
     "given_name": "Anna",
     "passport_number": "C1234567",
@@ -118,6 +141,7 @@ curl -X POST http://localhost:8000/api/v1/schengen/apply \
   -H 'Content-Type: application/json' \
   -d '{
     "user_id": "12345",
+    "chat_id": 987654321,
     "target_country": "germany",
     "surname": "Miller",
     "given_name": "Anna",
@@ -128,11 +152,13 @@ curl -X POST http://localhost:8000/api/v1/schengen/apply \
     "purpose": "tourism",
     "address": "Musterstrasse 12",
     "city": "Berlin",
-    "zip": "10115",
+    "zip_code": "10115",
     "phone": "+4915112345678",
     "email": "anna.mueller@example.com"
   }'
 ```
+
+The Schengen endpoint now uses `zip_code`.
 
 ### Status check
 
@@ -141,16 +167,17 @@ curl http://localhost:8000/api/v1/us-visa/status/US-DRYRUN-20260427-ABC12345
 curl http://localhost:8000/api/v1/schengen/status/SCH-DRYRUN-20260427-ABC12345
 ```
 
+Status notifications use the `chat_id` stored when the corresponding draft was created. For old records created before this patch, Telegram notification will be skipped if no `chat_id` is available.
+
 ## Telegram notifications
 
-Set these variables in `.env`:
+Set only the bot token in `.env`:
 
 ```env
-TELEGRAM_BOT_TOKEN=123456:ABCDEF
-TELEGRAM_CHAT_ID=123456789
+BOT_TOKEN=123456:ABCDEF
 ```
 
-If both variables are present, status checks can send a simple notification.
+Then include `chat_id` in each `POST /apply` JSON request. Changing the target Telegram chat no longer requires a Docker restart.
 
 ## Development
 
@@ -161,10 +188,7 @@ pytest -q
 ## How to push to GitHub
 
 ```bash
-git init
 git add .
-git commit -m "Initial safe FastAPI visa assistant scaffold"
-git branch -M main
-git remote add origin git@github.com:YOUR_USER/YOUR_REPO.git
-git push -u origin main
+git commit -m "Require Telegram chat_id per API request"
+git push
 ```

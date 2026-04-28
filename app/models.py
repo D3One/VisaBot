@@ -6,6 +6,11 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class VisaApplicantBase(BaseModel):
     user_id: str = Field(..., examples=["987654321"])
+    chat_id: int = Field(
+        ...,
+        description="Telegram chat_id where API notifications should be sent.",
+        examples=[987654321],
+    )
     surname: str = Field(..., min_length=1, max_length=80, examples=["Miller"])
     given_name: str = Field(..., min_length=1, max_length=80, examples=["Anna"])
     passport_number: str = Field(..., min_length=3, max_length=32, examples=["C1234567"])
@@ -38,7 +43,7 @@ class SchengenApplyRequest(VisaApplicantBase):
     target_country: Literal["germany", "france"] = Field(..., examples=["germany"])
     address: str = Field(..., min_length=2, max_length=200, examples=["Musterstrasse 12"])
     city: str = Field(..., min_length=1, max_length=80, examples=["Berlin"])
-    zip: str = Field(..., min_length=2, max_length=20, examples=["10115"])
+    zip_code: str = Field(..., min_length=2, max_length=20, examples=["10115"], description="Postal code.")
     phone: str = Field(..., min_length=6, max_length=32, examples=["+4915112345678"])
     email: EmailStr = Field(..., examples=["anna.mueller@example.com"])
 
@@ -50,7 +55,7 @@ class SchengenApplyRequest(VisaApplicantBase):
     country: str | None = Field(default=None, max_length=2, description="Residence country, ISO-3166 alpha-2.")
     occupation: str | None = Field(default=None, max_length=80)
 
-    @field_validator("address", "city", "zip", "phone")
+    @field_validator("address", "city", "zip_code", "phone")
     @classmethod
     def strip_schengen_strings(cls, value: str) -> str:
         value = value.strip()

@@ -27,6 +27,7 @@ async def submit_us_visa_dry_run(payload: USVisaApplyRequest) -> ApplyResponse:
         "kind": "us_visa",
         "status": "DRAFT_CREATED",
         "user_id": payload.user_id,
+        "chat_id": payload.chat_id,
         "created_at": created_at.isoformat(),
         "applicant": payload.model_dump(mode="json"),
     }

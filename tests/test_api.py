@@ -14,6 +14,7 @@ def test_health() -> None:
 def test_us_visa_apply_and_status() -> None:
     payload = {
         "user_id": "12345",
+        "chat_id": 987654321,
         "surname": "Miller",
         "given_name": "Anna",
         "passport_number": "C1234567",
@@ -33,9 +34,25 @@ def test_us_visa_apply_and_status() -> None:
     assert status_response.json()["status"] == "DRAFT_CREATED"
 
 
+def test_us_visa_apply_requires_chat_id() -> None:
+    payload = {
+        "user_id": "12345",
+        "surname": "Miller",
+        "given_name": "Anna",
+        "passport_number": "C1234567",
+        "birth_date": "1992-05-12",
+        "arrival_date": "2026-09-15",
+        "stay_length": 30,
+        "purpose": "tourism",
+    }
+    response = client.post("/api/v1/us-visa/apply", json=payload)
+    assert response.status_code == 422
+
+
 def test_schengen_apply_and_status() -> None:
     payload = {
         "user_id": "12345",
+        "chat_id": 987654321,
         "target_country": "germany",
         "surname": "Miller",
         "given_name": "Anna",
@@ -46,7 +63,7 @@ def test_schengen_apply_and_status() -> None:
         "purpose": "tourism",
         "address": "Musterstrasse 12",
         "city": "Berlin",
-        "zip": "10115",
+        "zip_code": "10115",
         "phone": "+4915112345678",
         "email": "anna.mueller@example.com",
     }

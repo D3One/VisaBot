@@ -9,23 +9,31 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-async def send_telegram_message(text: str) -> bool:
-    """Send a Telegram message when bot token and chat ID are configured.
+async def send_telegram_message(chat_id: int | str | None, text: str, parse_mode: str = "HTML") -> bool:
+    """Send a Telegram message to the chat_id provided by the API request.
 
-    Returns True when the message was sent, False when Telegram is not configured
-    or the request failed.
+    The bot token is still loaded from environment variables, but the destination
+    chat_id is no longer global configuration. This lets one running API container
+    notify different Telegram chats without changing .env or restarting Docker.
+
+    Returns True when the message was sent. Returns False when Telegram is not
+    configured, chat_id is missing, or the Telegram API request fails.
     """
 
     settings = get_settings()
-    if not settings.telegram_bot_token or not settings.telegram_chat_id:
-        logger.info("Telegram is not configured; skipping notification.")
+    if not settings.bot_token:
+        logger.info("Telegram bot token is not configured; skipping notification.")
         return False
 
-    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
+    if chat_id is None:
+        logger.info("Telegram chat_id was not provided; skipping notification.")
+        return False
+
+    url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
     payload = {
-        "chat_id": settings.telegram_chat_id,
+        "chat_id": chat_id,
         "text": text,
-        "parse_mode": "HTML",
+        "parse_mode": parse_mode,
         "disable_web_page_preview": True,
     }
 
